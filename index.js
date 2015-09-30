@@ -1,3 +1,5 @@
+const logger = require('log4js').getLogger();
+const rimraf = require('rimraf');
 const _ = require('lodash');
 const express = require('express');
 const app = express();
@@ -10,9 +12,10 @@ const Grid = require('gridfs-stream');
 const mongoose = require('mongoose');
 Grid.mongo = mongoose.mongo;
 
-const conn = mongoose.createConnection('mongodb://localhost/test');
+const MONGO_DB_CONN_ADDR = 'mongodb://localhost/file-server';
+const conn = mongoose.createConnection(MONGO_DB_CONN_ADDR);
 conn.once('open', () => {
-
+  logger.info(`Successfully connect to: ${MONGO_DB_CONN_ADDR}`);
   const gfs = Grid(conn.db);
 
   // serve a static web page for testing purpose
@@ -44,7 +47,7 @@ conn.once('open', () => {
   });
 
   server.listen(PORT, () => {
-    console.log(`listening on ${PORT}`);
+    logger.info(`Server started on port: ${PORT}`);
   });
 
 });

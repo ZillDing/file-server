@@ -75,21 +75,27 @@ function setupApp (conn) {
     app.post('/upload', (req, res) => {
       logger.trace(`Received upload request`);
       const form = new formidable.IncomingForm();
-      form.uploadDir = 'uploads';
+      form.uploadDir = UPLOAD_PATH;
       form.keepExtensions = true;
       form.multiples = true;
+
+      form.on('file', (fieldName, file) => {
+        logger.trace(`New file detected: ${file.name}`);
+        saveFile(file);
+      });
+      form.on('error', error => {
+        logger.warn(error);
+        res.status(500).end();
+      });
+      form.on('end', () => {
+        res.status(204).end();
+      });
+
       form.parse(req, (err, fields, files) => {
         if (!files.files) {
           logger.warn('Bad request, need to provide files field');
           return res.status(400).end();
         }
-
-        if (_.isArray(files.files)) {
-          files.files.forEach(saveFile);
-        } else {
-          saveFile(files.files);
-        }
-        res.status(204).end();
       });
     });
 

@@ -89,7 +89,7 @@ function setupApp (conn) {
         content_type: file.type
       });
       writeStream.on('close', file => {
-        logger.trace(`Successfully saved file: ${file._id}`);
+        logger.info(`Successfully saved file: ${file._id}`);
         io.emit('add file', file);
       });
       fs.createReadStream(file.path).pipe(writeStream);
@@ -137,7 +137,7 @@ function setupApp (conn) {
                 logger.error(error);
                 res.status(500).end();
               } else {
-                logger.trace(`Successfully deleted file with id: ${_id}`);
+                logger.info(`Successfully deleted file with id: ${_id}`);
                 io.emit('delete file', _id);
                 res.status(204).end();
               }

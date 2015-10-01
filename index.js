@@ -81,20 +81,6 @@ function setupApp (conn) {
     app.use(cors());
     app.options('*', cors());
 
-    // TODO: need error handling
-    const saveFile = (file) => {
-      logger.trace(`Saving file: ${file.name}, type: ${file.type}`);
-      const writeStream = gfs.createWriteStream({
-        filename: file.name,
-        content_type: file.type
-      });
-      writeStream.on('close', file => {
-        logger.info(`Successfully saved file: ${file._id}`);
-        io.emit('add file', file);
-      });
-      fs.createReadStream(file.path).pipe(writeStream);
-    };
-
     // GET /files
     app.get('/files', (req, res) => {
       gfs.files.find({}).toArray((error, files) => {
@@ -147,6 +133,28 @@ function setupApp (conn) {
       });
     });
 
+    // GET /download/:id
+    app.get('/download/:id', (req, res) => {
+      const _id = req.params.id;
+      const readStream = gfs.createReadStream({_id});
+      readStream.on('error', () => {
+        logger.error(`Error downloading file`);
+      });
+      readStream.pipe(res);
+    });
+
+    const saveFile = (file) => {
+      return new Promise((resolve, reject) => {
+        const writeStream = gfs.createWriteStream({
+          filename: file.name,
+          content_type: file.type
+        });
+        writeStream.on('error', reject);
+        writeStream.on('close', resolve);
+        fs.createReadStream(file.path).pipe(writeStream);
+      });
+    };
+
     // POST /upload
     app.post('/upload', (req, res) => {
       logger.trace(`Received upload request`);
@@ -156,8 +164,15 @@ function setupApp (conn) {
       form.multiples = true;
 
       form.on('file', (fieldName, file) => {
-        logger.trace(`New file detected: ${file.name}`);
-        saveFile(file);
+        logger.trace(`Start saving file: ${file.name}, type: ${file.type}`);
+        saveFile(file)
+        .then(file => {
+          logger.info(`Successfully saved file: ${file._id}`);
+          io.emit('add file', file);
+        })
+        .catch(() => {
+          logger.error(`Error saving file: ${file}`);
+        });
       });
       form.on('error', error => {
         logger.error(error);

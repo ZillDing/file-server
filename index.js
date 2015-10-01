@@ -2,6 +2,7 @@ const logger = require('log4js').getLogger();
 const express = require('express');
 const app = express();
 const server = require('http').Server(app);
+const io = require('socket.io')(server);
 const _ = require('lodash');
 
 const formidable = require('formidable');
@@ -56,6 +57,18 @@ function connectMongoDb () {
   });
 }
 
+function setupSocket () {
+  return new Promise((resolve, reject) => {
+    io.on('connection', socket => {
+      logger.trace(`A new user connected: ${socket.id}`);
+      socket.on('disconnect', () => {
+        logger.trace(`User disconnected: ${socket.id}`);
+      });
+    });
+    resolve();
+  });
+}
+
 function setupApp (conn) {
   return new Promise((resolve, reject) => {
     const gfs = Grid(conn.db);
@@ -63,15 +76,78 @@ function setupApp (conn) {
     // serve a static web page for testing purpose
     app.use(express.static('public'));
 
+    // enable CORS
+    const cors = require('cors');
+    app.use(cors());
+    app.options('*', cors());
+
+    // TODO: need error handling
     const saveFile = (file) => {
       logger.trace(`Saving file: ${file.name}, type: ${file.type}`);
       const writeStream = gfs.createWriteStream({
         filename: file.name,
         content_type: file.type
       });
+      writeStream.on('close', file => {
+        logger.trace(`Successfully saved file: ${file._id}`);
+        io.emit('add file', file);
+      });
       fs.createReadStream(file.path).pipe(writeStream);
     };
 
+    // GET /files
+    app.get('/files', (req, res) => {
+      gfs.files.find({}).toArray((error, files) => {
+        if (error) {
+          logger.error(error);
+          res.status(500).end();
+        } else {
+          res.json(files);
+        }
+      });
+    });
+
+    // GET /files/:id
+    app.get('/files/:id', (req, res) => {
+      const _id = req.params.id;
+      gfs.findOne({_id}, (error, file) => {
+        if (error) {
+          logger.error(error);
+          res.status(500).end();
+        } else {
+          res.json(file);
+        }
+      });
+    });
+
+    // DELETE /files/:id
+    app.delete('/files/:id', (req, res) => {
+      const _id = req.params.id;
+      gfs.exist({_id}, (error, found) => {
+        if (error) {
+          res.status(500).end();
+        } else {
+          if (!found) {
+            res.status(404).json({
+              error: `No file with id: ${_id}`
+            });
+          } else {
+            gfs.remove({_id}, error => {
+              if (error) {
+                logger.error(error);
+                res.status(500).end();
+              } else {
+                logger.trace(`Successfully deleted file with id: ${_id}`);
+                io.emit('delete file', _id);
+                res.status(204).end();
+              }
+            });
+          }
+        }
+      });
+    });
+
+    // POST /upload
     app.post('/upload', (req, res) => {
       logger.trace(`Received upload request`);
       const form = new formidable.IncomingForm();
@@ -84,7 +160,7 @@ function setupApp (conn) {
         saveFile(file);
       });
       form.on('error', error => {
-        logger.warn(error);
+        logger.error(error);
         res.status(500).end();
       });
       form.on('end', () => {
@@ -93,7 +169,7 @@ function setupApp (conn) {
 
       form.parse(req, (err, fields, files) => {
         if (!files.files) {
-          logger.warn('Bad request, need to provide files field');
+          logger.error('Bad request, need to provide files field');
           return res.status(400).end();
         }
       });
@@ -118,6 +194,7 @@ function startServer () {
 // Chain actions
 deleteUploadDir()
 .then(createUploadDir)
+.then(setupSocket)
 .then(connectMongoDb)
 .then(setupApp)
 .then(startServer)

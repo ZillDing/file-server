@@ -1,0 +1,8 @@
+Server:
+ ☐ change the download api (stream the data to a file first, then send response)
+
+App:
+ ☐ use jquery ajax to upload form
+ http://stackoverflow.com/questions/166221/how-can-i-upload-files-asynchronously
+ ☐ add upload progress indicator
+ ☐ add downloading/deleting loader

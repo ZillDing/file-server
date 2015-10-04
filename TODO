@@ -4,5 +4,7 @@ Server:
 App:
  ☐ use jquery ajax to upload form
  http://stackoverflow.com/questions/166221/how-can-i-upload-files-asynchronously
+ http://paramaggarwal.com/react-dropzone/
+ http://visionmedia.github.io/superagent/
  ☐ add upload progress indicator
  ☐ add downloading/deleting loader

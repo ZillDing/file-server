@@ -2,7 +2,7 @@ Server:
  ☐ change the download api (stream the data to a file first, then send response)
 
 App:
- ☐ use jquery ajax to upload form
+ ✔ use jquery ajax to upload form @done (15-10-05 14:01)
  http://stackoverflow.com/questions/166221/how-can-i-upload-files-asynchronously
  http://paramaggarwal.com/react-dropzone/
  http://visionmedia.github.io/superagent/

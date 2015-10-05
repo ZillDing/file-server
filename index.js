@@ -163,11 +163,11 @@ function setupApp (conn) {
       form.keepExtensions = true;
       form.multiples = true;
 
-      form.on('file', (fieldName, file) => {
+      form.on('file', (name, file) => {
         logger.trace(`Start saving file: ${file.name}, type: ${file.type}`);
         saveFile(file)
         .then(file => {
-          logger.info(`Successfully saved file: ${file._id}`);
+          logger.info(`Successfully saved file: ${file.name} with id: ${file._id}`);
           io.emit('add file', file);
         })
         .catch(() => {
@@ -182,12 +182,7 @@ function setupApp (conn) {
         res.status(204).end();
       });
 
-      form.parse(req, (err, fields, files) => {
-        if (!files.files) {
-          logger.error('Bad request, need to provide files field');
-          return res.status(400).end();
-        }
-      });
+      form.parse(req);
     });
 
     resolve();

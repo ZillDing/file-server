@@ -12,32 +12,33 @@ const mongoose = require('mongoose');
 Grid.mongo = mongoose.mongo;
 
 const PORT = 3000;
+const DOWNLOAD_PATH = 'downloads';
 const UPLOAD_PATH = 'uploads';
 const MONGO_DB_CONN_ADDR = 'mongodb://localhost/file-server';
 
-function deleteUploadDir () {
+function deleteDir (path) {
   const rimraf = require('rimraf');
   return new Promise((resolve, reject) => {
-    rimraf(UPLOAD_PATH, error => {
-      if (error) {
-        logger.error(error);
-        reject(`Error deleting upload dir: ${UPLOAD_PATH}`);
+    rimraf(path, err => {
+      if (err) {
+        logger.error(err);
+        reject(`Error deleting dir: ${path}`);
       } else {
-        logger.trace(`Successfully deleted upload dir: ${UPLOAD_PATH}`);
+        logger.trace(`Successfully deleted dir: ${path}`);
         resolve();
       }
     });
   });
 }
 
-function createUploadDir () {
+function createDir (path) {
   return new Promise((resolve, reject) => {
-    fs.mkdir(UPLOAD_PATH, error => {
-      if (error) {
-        logger.error(error);
-        reject(`Error creating upload dir: ${UPLOAD_PATH}`);
+    fs.mkdir(path, err => {
+      if (err) {
+        logger.error(err);
+        reject(`Error creating dir: ${path}`);
       } else {
-        logger.trace(`Successfully created upload dir: ${UPLOAD_PATH}`);
+        logger.trace(`Successfully created dir: ${path}`);
         resolve();
       }
     });
@@ -73,19 +74,19 @@ function setupApp (conn) {
   return new Promise((resolve, reject) => {
     const gfs = Grid(conn.db);
 
-    // serve a static web page for testing purpose
-    app.use(express.static('public'));
-
     // enable CORS
     const cors = require('cors');
     app.use(cors());
     app.options('*', cors());
 
+    // serve a static web page for testing purpose
+    app.use(`/${DOWNLOAD_PATH}`, express.static(DOWNLOAD_PATH));
+
     // GET /files
     app.get('/files', (req, res) => {
-      gfs.files.find({}).toArray((error, files) => {
-        if (error) {
-          logger.error(error);
+      gfs.files.find({}).toArray((err, files) => {
+        if (err) {
+          logger.error(err);
           res.status(500).end();
         } else {
           res.json(files);
@@ -109,8 +110,8 @@ function setupApp (conn) {
     // DELETE /files/:id
     app.delete('/files/:id', (req, res) => {
       const _id = req.params.id;
-      gfs.exist({_id}, (error, found) => {
-        if (error) {
+      gfs.exist({_id}, (err, found) => {
+        if (err) {
           res.status(500).end();
         } else {
           if (!found) {
@@ -118,9 +119,9 @@ function setupApp (conn) {
               error: `No file with id: ${_id}`
             });
           } else {
-            gfs.remove({_id}, error => {
-              if (error) {
-                logger.error(error);
+            gfs.remove({_id}, err => {
+              if (err) {
+                logger.error(err);
                 res.status(500).end();
               } else {
                 logger.info(`Successfully deleted file with id: ${_id}`);
@@ -136,11 +137,37 @@ function setupApp (conn) {
     // GET /download/:id
     app.get('/download/:id', (req, res) => {
       const _id = req.params.id;
-      const readStream = gfs.createReadStream({_id});
-      readStream.on('error', () => {
-        logger.error(`Error downloading file`);
+      gfs.exist({_id}, (err, found) => {
+        if (err) {
+          logger.error(err);
+          return res.status(500).end();
+        }
+        if (!found) return res.status(404).end();
+
+        gfs.findOne({_id}, (err, file) => {
+          if (err) {
+            logger.error(err);
+            return res.status(500).end();
+          }
+
+          const readStream = gfs.createReadStream({_id});
+          readStream.on('error', err => {
+            logger.error(err);
+            res.status(500).end();
+          });
+          const writeStream = fs.createWriteStream(`${DOWNLOAD_PATH}/${file.filename}`);
+          writeStream.on('error', err => {
+            logger.error(err);
+            res.status(500).end();
+          });
+          writeStream.on('finish', () => {
+            logger.trace(`File with id: ${file.filename} is piped to fs`);
+            res.redirect(`/${DOWNLOAD_PATH}/${file.filename}`);
+          });
+
+          readStream.pipe(writeStream);
+        });
       });
-      readStream.pipe(res);
     });
 
     const saveFile = (file) => {
@@ -174,8 +201,8 @@ function setupApp (conn) {
           logger.error(`Error saving file: ${file}`);
         });
       });
-      form.on('error', error => {
-        logger.error(error);
+      form.on('error', err => {
+        logger.error(err);
         res.status(500).end();
       });
       form.on('end', () => {
@@ -191,8 +218,8 @@ function setupApp (conn) {
 
 function startServer () {
   return new Promise((resolve, reject) => {
-    server.on('error', error => {
-      logger.error(error);
+    server.on('error', err => {
+      logger.error(err);
       reject(`Server cannot start on port: ${PORT}`);
     });
     server.listen(PORT, () => {
@@ -202,13 +229,15 @@ function startServer () {
 }
 
 // Chain actions
-deleteUploadDir()
-.then(createUploadDir)
+deleteDir(UPLOAD_PATH)
+.then(createDir.bind(this, UPLOAD_PATH))
+.then(deleteDir.bind(this, DOWNLOAD_PATH))
+.then(createDir.bind(this, DOWNLOAD_PATH))
 .then(setupSocket)
 .then(connectMongoDb)
 .then(setupApp)
 .then(startServer)
-.catch(error => {
-  logger.fatal(error);
+.catch(err => {
+  logger.fatal(err);
   process.exit(1);
 });

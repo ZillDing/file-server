@@ -194,7 +194,7 @@ function setupApp (conn) {
         logger.trace(`Start saving file: ${file.name}, type: ${file.type}`);
         saveFile(file)
         .then(file => {
-          logger.info(`Successfully saved file: ${file.name} with id: ${file._id}`);
+          logger.info(`Successfully saved file: ${file.filename} with id: ${file._id}`);
           io.emit('add file', file);
         })
         .catch(() => {

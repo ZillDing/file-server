@@ -1,5 +1,5 @@
 Server:
- ☐ change the download api (stream the data to a file first, then send response)
+ ✔ change the download api (stream the data to a file first, then send response) @done (15-10-05 16:58)
 
 App:
  ✔ use jquery ajax to upload form @done (15-10-05 14:01)

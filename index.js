@@ -1,19 +1,19 @@
-const logger = require('log4js').getLogger();
+const logger  = require('log4js').getLogger();
 const express = require('express');
-const app = express();
-const server = require('http').Server(app);
-const io = require('socket.io')(server);
-const _ = require('lodash');
+const app     = express();
+const server  = require('http').Server(app);
+const io      = require('socket.io')(server);
+const _       = require('lodash');
 
 const formidable = require('formidable');
-const fs = require('fs');
-const Grid = require('gridfs-stream');
-const mongoose = require('mongoose');
+const fs         = require('fs');
+const Grid       = require('gridfs-stream');
+const mongoose   = require('mongoose');
 Grid.mongo = mongoose.mongo;
 
-const PORT = 3000;
-const DOWNLOAD_PATH = 'downloads';
-const UPLOAD_PATH = 'uploads';
+const PORT               = 3000;
+const DOWNLOAD_PATH      = 'downloads';
+const UPLOAD_PATH        = 'uploads';
 const MONGO_DB_CONN_ADDR = 'mongodb://localhost/file-server';
 
 function deleteDir (path) {

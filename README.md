@@ -10,10 +10,10 @@ A simple file server using mongodb gridfs to store files
 
 ### Get started
 
-`
+```
 git clone https://github.com/ZillDing/file-server.git
 npm install
 npm start
-`
+```
 
 Point browser to `http://localhost:3000`

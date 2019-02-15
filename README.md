@@ -1,6 +1,8 @@
 File Server
 ============
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/zillding/file-server.svg)](https://greenkeeper.io/)
+
 A simple file server using mongodb gridfs to store files
 
 ### Dependencies
